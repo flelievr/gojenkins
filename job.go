@@ -439,9 +439,6 @@ func (j *Job) InvokeSimple(ctx context.Context, params map[string]string) (int64
 	}
 	data := url.Values{}
 	data.Set("json", string(makeJson(params)))
-	for k, v := range params {
-		data.Set(k, v)
-	}
 	resp, err := j.Jenkins.Requester.Post(ctx, j.Base+endpoint, bytes.NewBufferString(data.Encode()), nil, nil)
 	if err != nil {
 		return 0, err
