@@ -486,20 +486,48 @@ func (j *Job) InvokeSimple(ctx context.Context, params map[string]string) (int64
 		return queueID, nil
 	} else if strings.HasSuffix(u.Path, "/") && path.Base(u.Path[:len(u.Path)-1]) == j.GetName() {
 		// Jenkins returned the job URL instead of queue/build URL
-		// Fall back to polling the queue for the latest item
-		fmt.Printf("[Jenkins API] Job URL returned instead of queue URL, polling queue for latest item\n")
+		// Check if the job is currently queued and get the queue item
+		fmt.Printf("[Jenkins API] Job URL returned instead of queue URL, checking job queue status\n")
+		
+		// Refresh job data to get latest queue information
+		_, err := j.Poll(ctx)
+		if err != nil {
+			return 0, fmt.Errorf("failed to refresh job data: %v", err)
+		}
+		
+		// Check if job is queued and extract queue ID from job data
+		if j.Raw.InQueue && j.Raw.QueueItem != nil {
+			// Try to extract queue ID from the queue item
+			if queueItemURL, ok := j.Raw.QueueItem.(map[string]interface{}); ok {
+				if urlStr, ok := queueItemURL["url"].(string); ok {
+					if strings.Contains(urlStr, "queue/item/") {
+						// Extract queue ID from URL like ".../queue/item/12345/"
+						parts := strings.Split(urlStr, "/")
+						for i, part := range parts {
+							if part == "queue/item" && i+1 < len(parts) {
+								if queueID, err := strconv.ParseInt(parts[i+1], 10, 64); err == nil {
+									fmt.Printf("[Jenkins API] Found queue ID from job data: %d\n", queueID)
+									return queueID, nil
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		
+		// Fallback: Poll the entire queue as last resort
+		fmt.Printf("[Jenkins API] Falling back to polling entire queue\n")
 		queue, err := j.Jenkins.GetQueue(ctx)
 		if err != nil {
 			return 0, fmt.Errorf("failed to get queue: %v", err)
 		}
 		
-		// Find the most recent queue item for this job
 		tasks := queue.GetTasksForJob(j.GetName())
 		if len(tasks) == 0 {
 			return 0, errors.New("no queue items found for this job")
 		}
 		
-		// Return the queue ID of the most recent task
 		return tasks[0].Raw.ID, nil
 	} else {
 		// This is a direct build URL
