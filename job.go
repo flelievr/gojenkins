@@ -429,7 +429,7 @@ func (j *Job) InvokeSimple(ctx context.Context, params map[string]string) (int64
 		return 0, nil
 	}
 
-	endpoint := "/buildWithParameters"
+	endpoint := "/build"
 	parameters, err := j.GetParameters(ctx)
 	if err != nil {
 		return 0, err
