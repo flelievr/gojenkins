@@ -275,7 +275,6 @@ func (j *Jenkins) GetJobObj(ctx context.Context, name string) *Job {
 func (j *Jenkins) BuildJob(ctx context.Context, name string, params map[string]string) (int64, error) {
 	job := j.GetJobObj(ctx, name)
 	return job.InvokeSimple(ctx, params)
-	}
 }
 
 // A task in queue will be assigned a build number in a job after a few seconds.
