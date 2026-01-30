@@ -227,8 +227,17 @@ func (r *Requester) Do(ctx context.Context, ar *APIRequest, responseStruct inter
 		req.Header.Add(k, ar.Headers.Get(k))
 	}
 
-	// Log the HTTP URL for debugging
-	fmt.Printf("[Jenkins API] %s %s\n", ar.Method, URL.String())
+	// Log the HTTP request details for debugging
+	log.Printf("[Jenkins API] %s %s\n", ar.Method, URL.String())
+	if ar.Method == "POST" && ar.Payload != nil {
+		bodyBytes, _ := io.ReadAll(ar.Payload)
+		log.Printf("[Jenkins API] POST Body: %s\n", string(bodyBytes))
+		// Reset the payload for actual request
+		ar.Payload = bytes.NewReader(bodyBytes)
+	}
+	if len(ar.Headers) > 0 {
+		log.Printf("[Jenkins API] Headers: %v\n", ar.Headers)
+	}
 
 	if response, err := r.Client.Do(req); err != nil {
 		return nil, err
