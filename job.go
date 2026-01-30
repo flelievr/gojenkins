@@ -429,7 +429,7 @@ func (j *Job) InvokeSimple(ctx context.Context, params map[string]string) (int64
 		return 0, nil
 	}
 
-	endpoint := "/buildWithParameters"
+	endpoint := "/build"
 	parameters, err := j.GetParameters(ctx)
 	if err != nil {
 		return 0, err
@@ -524,7 +524,7 @@ func (j *Job) Invoke(ctx context.Context, files []string, skipIfRunning bool, pa
 
 func (j *Job) Poll(ctx context.Context) (int, error) {
 	query := map[string]string{
-		"tree": "name,builds[*]",
+		"tree": "name,builds[*],parameters[*]",
 	}
 	response, err := j.Jenkins.Requester.GetJSON(ctx, j.Base, j.Raw, query)
 	if err != nil {
