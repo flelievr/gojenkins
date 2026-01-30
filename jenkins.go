@@ -273,8 +273,25 @@ func (j *Jenkins) GetJobObj(ctx context.Context, name string) *Job {
 // First parameter job name, second parameter is optional Build parameters.
 // Returns queue id
 func (j *Jenkins) BuildJob(ctx context.Context, name string, params map[string]string) (int64, error) {
-	job := j.GetJobObj(ctx, name)
-	return job.InvokeSimple(ctx, params)
+	// Handle nested job paths (e.g., "folder1/folder2/jobname")
+	parts := strings.Split(name, "/")
+	if len(parts) > 1 {
+		// Nested job - use parent IDs
+		jobName := parts[len(parts)-1]
+		parentIDs := parts[:len(parts)-1]
+		job, err := j.GetJob(ctx, jobName, parentIDs...)
+		if err != nil {
+			return 0, err
+		}
+		return job.InvokeSimple(ctx, params)
+	} else {
+		// Simple job name
+		job, err := j.GetJob(ctx, name)
+		if err != nil {
+			return 0, err
+		}
+		return job.InvokeSimple(ctx, params)
+	}
 }
 
 // A task in queue will be assigned a build number in a job after a few seconds.
