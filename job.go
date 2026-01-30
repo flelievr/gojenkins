@@ -445,8 +445,8 @@ func (j *Job) InvokeSimple(ctx context.Context, params map[string]string) (int64
 	}
 
 	// Debug logging for response
-	fmt.Printf("[Jenkins API] Build Response Status: %d", resp.StatusCode)
-	fmt.Printf("[Jenkins API] Build Response Headers: %v", resp.Header)
+	fmt.Printf("[Jenkins API] Build Response Status: %d\n", resp.StatusCode)
+	fmt.Printf("[Jenkins API] Build Response Headers: %v\n", resp.Header)
 
 	if resp.StatusCode != 200 && resp.StatusCode != 201 {
 		return 0, fmt.Errorf("Could not invoke job %q: %s", j.GetName(), resp.Status)
@@ -454,7 +454,16 @@ func (j *Job) InvokeSimple(ctx context.Context, params map[string]string) (int64
 
 	location := resp.Header.Get("Location")
 	if location == "" {
-		return 0, errors.New("Don't have key \"Location\" in response of header")
+		// Check alternative headers
+		location = resp.Header.Get("Content-Location")
+	}
+	if location == "" {
+		// Log all available headers for debugging
+		fmt.Printf("[Jenkins API] All available headers:\n")
+		for key, values := range resp.Header {
+			fmt.Printf("  %s: %v\n", key, values)
+		}
+		return 0, errors.New("Don't have key 'Location' or 'Content-Location' in response header")
 	}
 
 	u, err := url.Parse(location)
