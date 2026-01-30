@@ -466,14 +466,30 @@ func (j *Job) InvokeSimple(ctx context.Context, params map[string]string) (int64
 		return 0, errors.New("Don't have key 'Location' or 'Content-Location' in response header")
 	}
 
+	fmt.Printf("[Jenkins API] Location header found: %s\n", location)
+
 	u, err := url.Parse(location)
 	if err != nil {
 		return 0, err
 	}
 
-	number, err := strconv.ParseInt(path.Base(u.Path), 10, 64)
-	if err != nil {
-		return 0, err
+	// Handle both queue items and direct build URLs
+	var number int64
+	if strings.Contains(u.Path, "queue/item") {
+		// This is a queue item URL - we need to poll for the build number
+		fmt.Printf("[Jenkins API] Queue item detected, extracting queue ID: %s\n", path.Base(u.Path))
+		queueID, err := strconv.ParseInt(path.Base(u.Path), 10, 64)
+		if err != nil {
+			return 0, err
+		}
+		// Return queue ID instead of build number - caller should handle this
+		return queueID, nil
+	} else {
+		// This is a direct build URL
+		number, err = strconv.ParseInt(path.Base(u.Path), 10, 64)
+		if err != nil {
+			return 0, err
+		}
 	}
 
 	return number, nil
