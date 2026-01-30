@@ -429,7 +429,7 @@ func (j *Job) InvokeSimple(ctx context.Context, params map[string]string) (int64
 		return 0, nil
 	}
 
-	endpoint := "/buildWithParameters"
+	endpoint := "/build"
 	parameters, err := j.GetParameters(ctx)
 	if err != nil {
 		return 0, err
@@ -438,7 +438,9 @@ func (j *Job) InvokeSimple(ctx context.Context, params map[string]string) (int64
 		endpoint = "/buildWithParameters"
 	}
 	data := url.Values{}
-	data.Set("json", string(makeJson(params)))
+	for k, v := range params {
+		data.Set(k, v)
+	}
 	resp, err := j.Jenkins.Requester.Post(ctx, j.Base+endpoint, bytes.NewBufferString(data.Encode()), nil, nil)
 	if err != nil {
 		return 0, err
@@ -454,18 +456,9 @@ func (j *Job) InvokeSimple(ctx context.Context, params map[string]string) (int64
 
 	location := resp.Header.Get("Location")
 	if location == "" {
-		// Check alternative headers
-		location = resp.Header.Get("Content-Location")
+		return 0, errors.New("Don't have key \"Location\" in response of header")
 	}
-	if location == "" {
-		// Log all available headers for debugging
-		fmt.Printf("[Jenkins API] All available headers:\n")
-		for key, values := range resp.Header {
-			fmt.Printf("  %s: %v\n", key, values)
-		}
-		return 0, errors.New("Don't have key 'Location' or 'Content-Location' in response header")
-	}
-
+	
 	fmt.Printf("[Jenkins API] Location header found: %s\n", location)
 
 	u, err := url.Parse(location)
@@ -473,40 +466,9 @@ func (j *Job) InvokeSimple(ctx context.Context, params map[string]string) (int64
 		return 0, err
 	}
 
-	// Handle both queue items and direct build URLs
-	var number int64
-	if strings.Contains(u.Path, "queue/item") {
-		// This is a queue item URL - we need to poll for the build number
-		fmt.Printf("[Jenkins API] Queue item detected, extracting queue ID: %s\n", path.Base(u.Path))
-		queueID, err := strconv.ParseInt(path.Base(u.Path), 10, 64)
-		if err != nil {
-			return 0, err
-		}
-		// Return queue ID instead of build number - caller should handle this
-		return queueID, nil
-	} else if strings.HasSuffix(u.Path, "/") && path.Base(u.Path[:len(u.Path)-1]) == j.GetName() {
-		// Jenkins returned the job URL instead of queue/build URL
-		// Fall back to polling the queue for the latest item
-		fmt.Printf("[Jenkins API] Job URL returned instead of queue URL, polling queue for latest item\n")
-		queue, err := j.Jenkins.GetQueue(ctx)
-		if err != nil {
-			return 0, fmt.Errorf("failed to get queue: %v", err)
-		}
-		
-		// Find the most recent queue item for this job
-		tasks := queue.GetTasksForJob(j.GetName())
-		if len(tasks) == 0 {
-			return 0, errors.New("no queue items found for this job")
-		}
-		
-		// Return the queue ID of the most recent task
-		return tasks[0].Raw.ID, nil
-	} else {
-		// This is a direct build URL
-		number, err = strconv.ParseInt(path.Base(u.Path), 10, 64)
-		if err != nil {
-			return 0, err
-		}
+	number, err := strconv.ParseInt(path.Base(u.Path), 10, 64)
+	if err != nil {
+		return 0, err
 	}
 
 	return number, nil
