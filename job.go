@@ -447,6 +447,10 @@ func (j *Job) InvokeSimple(ctx context.Context, params map[string]string) (int64
 		return 0, err
 	}
 
+	// Debug logging for response
+	log.Printf("[Jenkins API] Build Response Status: %d", resp.StatusCode)
+	log.Printf("[Jenkins API] Build Response Headers: %v", resp.Header)
+
 	if resp.StatusCode != 200 && resp.StatusCode != 201 {
 		return 0, fmt.Errorf("Could not invoke job %q: %s", j.GetName(), resp.Status)
 	}
