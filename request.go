@@ -227,6 +227,9 @@ func (r *Requester) Do(ctx context.Context, ar *APIRequest, responseStruct inter
 		req.Header.Add(k, ar.Headers.Get(k))
 	}
 
+	// Log the HTTP URL for debugging
+	fmt.Printf("[Jenkins API] %s %s\n", ar.Method, URL.String())
+
 	if response, err := r.Client.Do(req); err != nil {
 		return nil, err
 	} else {
