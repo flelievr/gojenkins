@@ -545,7 +545,7 @@ func (j *Job) Invoke(ctx context.Context, files []string, skipIfRunning bool, pa
 
 func (j *Job) Poll(ctx context.Context) (int, error) {
 	query := map[string]string{
-            "tree": "name,builds[*]",
+            "tree": "builds[*]",
     }
     response, err := j.Jenkins.Requester.GetJSON(ctx, j.Base, j.Raw, query)
 	if err != nil {
