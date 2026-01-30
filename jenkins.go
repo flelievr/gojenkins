@@ -273,12 +273,27 @@ func (j *Jenkins) GetJobObj(ctx context.Context, name string) *Job {
 // First parameter job name, second parameter is optional Build parameters.
 // Returns queue id
 func (j *Jenkins) BuildJob(ctx context.Context, name string, params map[string]string) (int64, error) {
-	// Handle nested job paths (e.g., "folder1/folder2/jobname")
+	// Handle nested job paths (e.g., "folder1/job/folder2/job/jobname")
 	parts := strings.Split(name, "/")
-	if len(parts) > 1 {
+	var parentIDs []string
+	var jobName string
+	
+	// Filter out 'job' segments and collect actual folder/job names
+	for i, part := range parts {
+		if part == "job" {
+			continue // Skip 'job' segments as they're URL separators, not actual names
+		}
+		if i == len(parts)-1 {
+			// Last segment is the job name
+			jobName = part
+		} else if part != "" {
+			// Middle segments are parent folders
+			parentIDs = append(parentIDs, part)
+		}
+	}
+	
+	if len(parentIDs) > 0 {
 		// Nested job - use parent IDs
-		jobName := parts[len(parts)-1]
-		parentIDs := parts[:len(parts)-1]
 		job, err := j.GetJob(ctx, jobName, parentIDs...)
 		if err != nil {
 			return 0, err
@@ -286,7 +301,7 @@ func (j *Jenkins) BuildJob(ctx context.Context, name string, params map[string]s
 		return job.InvokeSimple(ctx, params)
 	} else {
 		// Simple job name
-		job, err := j.GetJob(ctx, name)
+		job, err := j.GetJob(ctx, jobName)
 		if err != nil {
 			return 0, err
 		}
