@@ -438,6 +438,7 @@ func (j *Job) InvokeSimple(ctx context.Context, params map[string]string) (int64
 		endpoint = "/buildWithParameters"
 	}
 	data := url.Values{}
+	data.Set("json", string(makeJson(params)))
 	for k, v := range params {
 		data.Set(k, v)
 	}
